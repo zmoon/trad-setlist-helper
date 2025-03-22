@@ -11,34 +11,53 @@ Would be nice to add:
 
 from __future__ import annotations
 
+import logging
 import re
-
-# from functools import lru_cache as cache
+from functools import lru_cache
 from pathlib import Path
-from string import ascii_lowercase, ascii_uppercase
-from typing import TypedDict
+from string import ascii_lowercase
+from typing import TypedDict, TYPE_CHECKING, NotRequired
 
-import pandas as pd
-from pyabc2.sources import the_session
+if TYPE_CHECKING:
+    import pandas as pd
 
 HERE = Path(__file__).parent
 
-TUNES = the_session.load_meta("tunes")[
-    ["tune_id", "setting_id", "type", "mode", "abc", "name"]
-]
+logger = logging.getLogger(__name__)
 
-# Include primary name as an alias
-ALIASES = pd.concat(
-    [
-        TUNES[["tune_id", "name"]].rename(columns={"name": "alias"}),
-        the_session.load_meta("aliases")[["tune_id", "alias"]],
-    ],
-    ignore_index=True,
-).drop_duplicates()
-# TODO: should the primary name get preferential treatment?
+
+@lru_cache(1)
+def load_tunes() -> pd.DataFrame:
+    from pyabc2.sources import the_session
+
+    # TODO: cache the files to disk, maybe as json.gz, instead of downloading every session
+    return the_session.load_meta("tunes")[
+        ["tune_id", "setting_id", "type", "mode", "abc", "name"]
+    ]
+
+
+@lru_cache(1)
+def load_aliases() -> pd.DataFrame:
+    from pyabc2.sources import the_session
+
+    # TODO: should the primary name get preferential treatment?
+    # Note we have to explicitly add primary name as an alias
+    return pd.concat(
+        [
+            load_tunes()[["tune_id", "name"]].rename(columns={"name": "alias"}),
+            the_session.load_meta("aliases")[["tune_id", "alias"]],
+        ],
+        ignore_index=True,
+    ).drop_duplicates()
 
 
 def normalize_key(key: str) -> str:
+    """The Session key format.
+
+    - Mode full name, in lowercase
+    - No space between tonic and mode
+    """
+
     # TODO: not very general, should add full name option to Key class
     from pyabc2.key import _MODE_ABBR_TO_FULL
 
@@ -54,10 +73,32 @@ def normalize_key(key: str) -> str:
 
 
 def normalize_type(type_: str) -> str:
+    """The Session tune type format.
+
+    - Lowercase
+    - Singular
+    """
     type_ = type_.lower()
     if type_.endswith("s"):
         type_ = type_[:-1]
     return type_
+
+
+def normalize_name(name: str) -> str:
+    """The Session name format.
+
+    - Capitalize first letter of each word
+    - "..., The" instead of "The ..."
+    - Replace fancy quote with normal single quote / apostrophe
+    """
+    name = name.replace("’", "'")
+    name = " ".join(
+        word.capitalize() if word[0] in ascii_lowercase else word
+        for word in name.split()
+    )
+    if name.startswith("The "):
+        name = name[4:] + ", The"
+    return name
 
 
 def take_measures(abc: str, *, n: int = 5) -> str:
@@ -71,56 +112,62 @@ def take_measures(abc: str, *, n: int = 5) -> str:
 
 class Query(TypedDict):
     name: str
+    """Tune name, e.g. 'The Frost is All Over'."""
+
     type: str
+    """Tune type, e.g. 'reel'."""
+
     mode: str | None
-    tune_id: int | None
+    """Key/mode, e.g. 'Edor'."""
+
+    tune_id: NotRequired[int | None]
+    """Tune ID on The Session (if known). Optional."""
 
 
 class Result(TypedDict):
     url: str
+    """URL to the tune on The Session."""
+
     key: str
+    """Key/mode of the tune according to The Session setting selected, e.g. 'Edorian'."""
+
     starts: list[str]
+    """List of ABC notation strings for the start of each part."""
 
 
 def match(query: Query) -> Result:
-    # Replace fancy single quote/apostrophe with ASCII single quote
-    query["name"] = query["name"].replace("’", "'")
-    query["name"] = " ".join(
-        word.capitalize() if word[0] in ascii_lowercase else word
-        for word in query["name"].split()
-    )
-    if query["name"].startswith("The "):
-        query["name"] = query["name"][4:] + ", The"
-
-    # Normalize to full mode name
+    name_in = query["name"]
+    name = normalize_name(query["name"])
+    key = None
     if query["mode"] is not None:
-        query["mode"] = normalize_key(query["mode"])
+        key = normalize_key(query["mode"])
+    tune_type = normalize_type(query["type"])
+    tune_id = query.get("tune_id")
 
     # First try to match name
-    possible_ids = sorted(ALIASES.query("alias == @query['name']").tune_id.unique())
+    possible_ids = sorted(load_aliases().query("alias == @name").tune_id.unique())
     if not possible_ids:
-        raise ValueError(f"No tune found with name/alias {query['name']!r}")
+        raise ValueError(f"No tune found with name/alias {name!r}")
 
     # Now narrow based on type and key
-    s_query = "tune_id == @possible_ids and type == @query['type']"
-    if query["mode"] is not None:
-        s_query += " and mode == @query['mode']"
-    if query.get("tune_id") is not None:
-        s_query += " and tune_id == @query['tune_id']"
-    matches = TUNES.query(s_query)
+    s_query = "tune_id == @possible_ids and type == @tune_type"
+    if key is not None:
+        s_query += " and mode == @key"
+    if tune_id is not None:
+        s_query += " and tune_id == @tune_id"
+    matches = load_tunes().query(s_query)
 
     if matches.empty:
         raise ValueError(
-            f"No {query['name']!r} tune found for "
-            f"type {query['type']!r} and key {query['mode']!r}"
+            f"No {name_in!r} tune found for type {tune_type!r} and key {key!r}"
         )
     elif matches.tune_id.nunique() > 1:
         matches_ = matches.drop(columns="setting_id").drop_duplicates(
             ["tune_id", "type", "mode"], keep="first"
         )
         raise ValueError(
-            f"Multiple {query['name']!r} tunes found for "
-            f"type {query['type']!r} and key {query['mode']!r}:\n{matches_}"
+            f"Multiple {name_in!r} tunes found for "
+            f"type {tune_type!r} and key {key!r}:\n{matches_}"
         )
 
     # Pick the oldest matching setting
@@ -146,7 +193,7 @@ def match(query: Query) -> Result:
         if len(abc) - i < 10:
             continue
         i_part_cands.append(i)
-    print(i_part_cands)
+    logger.debug(f"part start candidates: {i_part_cands}")
 
     starts = [start]
     for i_part in i_part_cands:
@@ -161,50 +208,29 @@ def match(query: Query) -> Result:
     }
 
 
-# Example
-query = {
-    "name": "Cooley's",
-    "type": "reel",
-    "mode": "Edor",
-    "tune_id": None,
-}
-print(query)
-print("->", match(query))
+def parse_set_type(type_input: str, num_tunes: int, /) -> list[str]:
+    """Based on the type input string and known number of tunes,
+    return a list of tune types for the set.
 
-# Table from Brian's email as CSV via Excel
-# Had to:
-# - add a lot of "The "s
-# - specify ID in some cases,
-#   where adding key still resulted in multiple matches using aliases
-# - "Tobin's Favorite" (American spelling) is an alias on the website,
-#   but not in the data
-#   (maybe should contact Jeremy about this)
-# -
-setlist_input = pd.read_csv(
-    HERE / "bcs-first-setlist.csv",
-    header=None,
-    names=["set", "type"],
-)
+    Example type input strings:
 
-
-s = "# Set list\n"
-s_html_body = "<h1>Set list</h1>\n"
-for i_set, (set_input, type_input) in enumerate(
-    setlist_input.itertuples(index=False), start=1
-):
-    tunes = [tune.strip() for tune in set_input.split("/")]
+    - 'reels'
+    - 'jigs, reel'
+    - 'hornpipe, reels'
+    - 'slip jig, jig'
+    """
     type_inputs = [s.strip() for s in type_input.split(",")]
-    if len(type_inputs) == len(tunes):
+    if len(type_inputs) == num_tunes:
         types = [normalize_type(s) for s in type_inputs]
     elif len(type_inputs) == 1:
-        types = [normalize_type(type_inputs[0])] * len(tunes)
+        types = [normalize_type(type_inputs[0])] * num_tunes
     elif len(type_inputs) == 2:
         a, b = type_inputs
         a_is_plural = a.endswith("s")
         b_is_plural = b.endswith("s")
-        if len(tunes) < 2:
+        if num_tunes < 2:
             raise ValueError("Too many types")
-        elif len(tunes) == 2:
+        elif num_tunes == 2:
             types = [normalize_type(a), normalize_type(b)]
         else:
             if a_is_plural and b_is_plural:
@@ -214,9 +240,9 @@ for i_set, (set_input, type_input) in enumerate(
                     "(e.g. 'slip jig, jig, reel')."
                 )
             elif a_is_plural:
-                types = [normalize_type(a)] * (len(tunes) - 1) + [normalize_type(b)]
+                types = [normalize_type(a)] * (num_tunes - 1) + [normalize_type(b)]
             elif b_is_plural:
-                types = [normalize_type(a)] + [normalize_type(b)] * (len(tunes) - 1)
+                types = [normalize_type(a)] + [normalize_type(b)] * (num_tunes - 1)
             else:
                 raise ValueError("Not enough types")
     else:
@@ -225,74 +251,49 @@ for i_set, (set_input, type_input) in enumerate(
             "Try specifying type for each tune (e.g. 'slip jig, jig, reel')."
         )
 
-    set_input_ = " / ".join(re.sub(r"\[[0-9]+\]", "", tune).strip() for tune in tunes)
-    set_input_ = re.sub(r"\s{2,}", " ", set_input_)
-    s += f"\n#### {type_input}: {set_input_}\n\n"
-    s_html_body += f"<h2>{type_input}: {set_input_.replace('’', '&rsquo;')}</h2>\n"
-    s_html_body += "<ol>\n"
-    for i_tune, (tune, type_) in enumerate(zip(tunes, types), start=1):
-        # Optional key in parens or ID in brackets
-        m = re.fullmatch(r"(.+?)\s*(?:\((.+?)\))?\s*(?:\[(.+?)\])?", tune)
-        if m is None:
-            raise ValueError(f"Could not parse tune input {tune!r}")
-        name_, key, id_ = m.groups()
-        if id_ is not None:
-            id_ = int(id_)
+    return types
 
-        query = {
-            "name": name_,
-            "type": type_,
-            "mode": key,
-            "tune_id": id_,
-        }
-        result = match(query)
-        print(tune)
-        print("->", result)
 
-        s += f"{i_tune}. `{result['key']}` `{result['starts'][0]}` [link]({result['url']})\n"
-        music_id = f"music-{i_set}-{i_tune}-a"  # TODO: other parts
-        abc = f"K: {result['key']}\nP: A\n{result['starts'][0]}"
-        for part_label, other_part in zip(ascii_uppercase[1:], result["starts"][1:]):
-            abc += f"\nP: {part_label}\n{other_part}"
-        s_html_body += (
-            f"<li><a href='{result['url']}'>link</a>"
-            f"<div id={music_id!r}><pre>{abc}</pre></div>"
-            f"</li>\n"
-        )
-    s_html_body += "</ol>\n"
+def parse_tune(tune_input: str, /) -> dict[str, str | None]:
+    """Parse a tune input string.
 
-with open(HERE / "bcs-first-setlist.md", "w") as f:
-    f.write(s)
+    Examples:
 
-s_html_body += """\
-<script>
-// Find all divs with ID music-* and render them
-document.querySelectorAll('div[id^="music-"]').forEach(function (div) {
-    var abc = div.querySelector('pre').textContent;
-    ABCJS.renderAbc(
-        div,
-        abc,
-        {
-            scale: 0.6,
-            staffwidth: 350,
-        },
-    );
-});
-</script>
-"""
+    - Cooley's
+    - Cooley's (Edor)
+    - Cooley's (Edor) [1]
+    - Cooley's [1]
+    """
+    # Optional key in parens or ID in brackets
+    # TODO: support setting ID with a [tune:setting] syntax
+    m = re.fullmatch(r"(.+?)\s*(?:\((.+?)\))?\s*(?:\[(.+?)\])?", tune_input)
+    if m is None:
+        raise ValueError(f"Could not parse tune input {tune_input!r}")
+    name_, key_, id_ = m.groups()
+    if id_ is not None:
+        id_ = int(id_)
 
-with open(HERE / "bcs-first-setlist.html", "w") as f:
-    f.write("""\
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Set list</title>
-  <script src='https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js'></script>
-</head>
-<body>
-""")
-    # f.write("<body>\n")
-    f.write(s_html_body)
-    f.write("</body>\n</html>")
+    return {
+        "name": name_,
+        "mode": key_,
+        "tune_id": id_,
+    }
+
+
+def parse_set(set_line: str, /) -> list[Query]:
+    """
+    Examples:
+
+    - reels: Cooley's / The Maid Behind the Bar / The Silver Spear
+    """
+    type_input, tunes_input = set_line.split(":", 1)
+    tune_inputs = [tune.strip() for tune in tunes_input.split("/")]
+    n = len(tune_inputs)
+
+    types = parse_set_type(type_input, n)
+    queries = [parse_tune(tune) for tune in tune_inputs]
+
+    for query, type_ in zip(queries, types):
+        query["type"] = type_
+
+    return queries
