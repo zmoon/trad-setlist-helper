@@ -229,8 +229,8 @@ def match(query: Query) -> Result:
 
     return {
         "name": name,
-        "tune_id": tune_id_out,
-        "setting_id": setting_id,
+        "tune_id": int(tune_id_out),
+        "setting_id": int(setting_id),
         "type": tune_type_out,
         "key": key_out,
         "starts": starts,
