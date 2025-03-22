@@ -1,5 +1,9 @@
 # trad-setlist-helper
 
+Use data from The Session to generate incipts for a list of tune sets.
+
+---
+
 Would be nice to add:
 
 - [ ] fuzzy name matching

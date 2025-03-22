@@ -2,7 +2,7 @@
 name = "trad-setlist-helper"
 authors = [{"name" = "zmoon", email = "zmoon92@gmail.com"}]
 dynamic = ["version"]
-description = "Convert list of tune sets to set list with incipits"
+description = "Convert list of tune sets to setlist with incipits"
 license = {"file" = "LICENSE"}
 readme = "README.md"
 requires-python = "~= 3.11"
@@ -17,6 +17,17 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "src/trad_setlist_helper/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  ".gitignore",
+  ".pre-commit-config.yaml",
+  "pyproject.toml",
+  "/test_*",
+  "/*.csv",
+  "/app/",
+]
+# NOTE: .gitignore and pyproject.toml are still getting included in the sdist
 
 [tool.uv]
 dev-dependencies = [
