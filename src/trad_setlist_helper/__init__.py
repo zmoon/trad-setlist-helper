@@ -14,7 +14,7 @@ from pathlib import Path
 from string import ascii_lowercase
 from typing import TypedDict, TYPE_CHECKING, NotRequired
 
-__version__ = "0.0.1"
+__version__ = "0.0.2.dev0"
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -32,6 +32,8 @@ Set before calling :func:`match` (or :func:`load_tunes` / :func:`load_aliases`).
 @lru_cache(1)
 def load_tunes() -> pd.DataFrame:
     if USE_CWD_FILES:
+        import pandas as pd
+
         df = pd.read_json("tunes.json")
     else:
         from pyabc2.sources import the_session
