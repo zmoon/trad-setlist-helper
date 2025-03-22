@@ -118,11 +118,11 @@ class Query(TypedDict):
     name: str
     """Tune name, e.g. 'The Frost is All Over'."""
 
-    type: str
-    """Tune type, e.g. 'reel'."""
+    type: NotRequired[str | None]
+    """Tune type, e.g. 'reel'. Optional."""
 
-    key: str | None
-    """Key/mode, e.g. 'D', 'Am', 'Edor'."""
+    key: NotRequired[str | None]
+    """Key/mode, e.g. 'D', 'Am', 'Edor'. Optional."""
 
     tune_id: NotRequired[int | None]
     """Tune ID on The Session (if known). Optional."""
@@ -138,6 +138,9 @@ class Result(TypedDict):
     setting_id: int
     """Setting ID on The Session."""
 
+    type: str
+    """Type of the tune (unique for a tune ID)."""
+
     key: str
     """Key/mode of the tune according to The Session setting selected, e.g. 'Edor'."""
 
@@ -151,19 +154,21 @@ class Result(TypedDict):
 def match(query: Query) -> Result:
     name_in = query["name"]
     name = normalize_name(query["name"])
-    key = None
-    if query["key"] is not None:
-        key = normalize_key(query["key"])
-    tune_type = normalize_type(query["type"])
+    if (key := query.get("key")) is not None:
+        key = normalize_key(key)
+    if (tune_type := query.get("type")) is not None:
+        tune_type = normalize_type(tune_type)
     tune_id = query.get("tune_id")
 
     # First try to match name
-    possible_ids = sorted(load_aliases().query("alias == @name").tune_id.unique())
+    possible_ids = sorted(load_aliases().query("alias == @name")["tune_id"].unique())
     if not possible_ids:
         raise ValueError(f"No tune found with name/alias {name!r}")
 
     # Now narrow based on type and key
-    s_query = "tune_id == @possible_ids and type == @tune_type"
+    s_query = "tune_id == @possible_ids"
+    if tune_type is not None:
+        s_query += " and type == @tune_type"
     if key is not None:
         s_query += " and key == @key"
     if tune_id is not None:
@@ -174,7 +179,7 @@ def match(query: Query) -> Result:
         raise ValueError(
             f"No {name_in!r} tune found for type {tune_type!r} and key {key!r}"
         )
-    elif matches.tune_id.nunique() > 1:
+    elif matches["tune_id"].nunique() > 1:
         matches_ = matches.drop(columns="setting_id").drop_duplicates(
             ["tune_id", "type", "key"], keep="first"
         )
@@ -184,10 +189,16 @@ def match(query: Query) -> Result:
         )
 
     # Pick the oldest matching setting
-    setting_id = matches.setting_id.min()
-    tune_id_out = matches.tune_id.iloc[0]
+    setting_id = matches["setting_id"].min()
+    tune_id_out = matches["tune_id"].iloc[0]
     if tune_id is not None:
         assert tune_id == tune_id_out
+    tune_type_out = matches["type"].iloc[0]
+    if tune_type is not None:
+        assert tune_type == tune_type_out
+    key_out = matches["key"].iloc[0][:4]  # TODO: get abbr in a more general way
+    if key is not None:
+        assert key.startswith(key_out)
     abc = (
         matches.sort_values(by="setting_id", ascending=True)
         .abc.iloc[0]
@@ -220,7 +231,8 @@ def match(query: Query) -> Result:
         "name": name,
         "tune_id": tune_id_out,
         "setting_id": setting_id,
-        "key": matches["key"].iloc[0][:4],  # TODO: more general
+        "type": tune_type_out,
+        "key": key_out,
         "starts": starts,
         "name_input": name_in,
     }
@@ -272,7 +284,7 @@ def parse_set_type(type_input: str, num_tunes: int, /) -> list[str]:
     return types
 
 
-def parse_tune(tune_input: str, /) -> dict[str, str | None]:
+def parse_tune(tune_input: str, /) -> Query:
     """Parse a tune input string.
 
     Examples:

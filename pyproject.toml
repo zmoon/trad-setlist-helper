@@ -17,3 +17,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "src/trad_setlist_helper/__init__.py"
+
+[tool.uv]
+dev-dependencies = [
+    "ipython",
+    "mypy",
+    "pandas-stubs",
+    "pytest",
+]

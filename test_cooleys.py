@@ -1,7 +1,7 @@
-from trad_setlist_helper import match
+from trad_setlist_helper import match, Query
 
 
-query = {
+query: Query = {
     "name": "Cooley's",
     "type": "reel",
     "key": "Edor",
