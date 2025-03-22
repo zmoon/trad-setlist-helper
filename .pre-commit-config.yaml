@@ -8,11 +8,11 @@ repos:
     rev: "v5.0.0"
     hooks:
       - id: check-added-large-files
-      - id: check-toml
+      # - id: check-toml
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
-        args: ['--markdown-linebreak-ext=md,markdown']
+        args: ["--markdown-linebreak-ext=md,markdown"]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: "v0.11.2"

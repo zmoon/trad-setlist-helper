@@ -8,9 +8,11 @@ Would be nice to add:
 - fuzzy key/mode matching (e.g. same key sig, maybe even min and dor matching)
 - default to Norbeck for the transcription if available
 """
+
 from __future__ import annotations
 
 import re
+
 # from functools import lru_cache as cache
 from pathlib import Path
 from string import ascii_lowercase, ascii_uppercase
@@ -95,9 +97,7 @@ def match(query: Query) -> Result:
         query["mode"] = normalize_key(query["mode"])
 
     # First try to match name
-    possible_ids = sorted(
-        ALIASES.query("alias == @query['name']").tune_id.unique()
-    )
+    possible_ids = sorted(ALIASES.query("alias == @query['name']").tune_id.unique())
     if not possible_ids:
         raise ValueError(f"No tune found with name/alias {query['name']!r}")
 
@@ -115,9 +115,8 @@ def match(query: Query) -> Result:
             f"type {query['type']!r} and key {query['mode']!r}"
         )
     elif matches.tune_id.nunique() > 1:
-        matches_ = (
-            matches.drop(columns="setting_id")
-            .drop_duplicates(["tune_id", "type", "mode"], keep="first")
+        matches_ = matches.drop(columns="setting_id").drop_duplicates(
+            ["tune_id", "type", "mode"], keep="first"
         )
         raise ValueError(
             f"Multiple {query['name']!r} tunes found for "
@@ -142,7 +141,7 @@ def match(query: Query) -> Result:
     i_part_cands = []
     for m in re.finditer(r"\|[:|]", abc[offset:]):
         i = m.start() + offset
-        if "|" in abc[i - 3:i]:
+        if "|" in abc[i - 3 : i]:
             continue
         if len(abc) - i < 10:
             continue
@@ -151,7 +150,9 @@ def match(query: Query) -> Result:
 
     starts = [start]
     for i_part in i_part_cands:
-        starts.append(take_measures(abc[i_part:], n=7))  # FIXME: counting not accounting for the || and such
+        starts.append(
+            take_measures(abc[i_part:], n=7)
+        )  # FIXME: counting not accounting for the || and such
 
     return {
         "url": url,
@@ -188,11 +189,10 @@ setlist_input = pd.read_csv(
 
 s = "# Set list\n"
 s_html_body = "<h1>Set list</h1>\n"
-for i_set, (set_input, type_input) in enumerate(setlist_input.itertuples(index=False), start=1):
-    tunes = [
-        tune.strip()
-        for tune in set_input.split("/")
-    ]
+for i_set, (set_input, type_input) in enumerate(
+    setlist_input.itertuples(index=False), start=1
+):
+    tunes = [tune.strip() for tune in set_input.split("/")]
     type_inputs = [s.strip() for s in type_input.split(",")]
     if len(type_inputs) == len(tunes):
         types = [normalize_type(s) for s in type_inputs]
@@ -228,7 +228,7 @@ for i_set, (set_input, type_input) in enumerate(setlist_input.itertuples(index=F
     set_input_ = " / ".join(re.sub(r"\[[0-9]+\]", "", tune).strip() for tune in tunes)
     set_input_ = re.sub(r"\s{2,}", " ", set_input_)
     s += f"\n#### {type_input}: {set_input_}\n\n"
-    s_html_body += f"<h2>{type_input}: {set_input_.replace("’", "&rsquo;")}</h2>\n"
+    s_html_body += f"<h2>{type_input}: {set_input_.replace('’', '&rsquo;')}</h2>\n"
     s_html_body += "<ol>\n"
     for i_tune, (tune, type_) in enumerate(zip(tunes, types), start=1):
         # Optional key in parens or ID in brackets
@@ -251,17 +251,13 @@ for i_set, (set_input, type_input) in enumerate(setlist_input.itertuples(index=F
 
         s += f"{i_tune}. `{result['key']}` `{result['starts'][0]}` [link]({result['url']})\n"
         music_id = f"music-{i_set}-{i_tune}-a"  # TODO: other parts
-        abc = (
-            f"K: {result['key']}\n"
-            "P: A\n"
-            f"{result['starts'][0]}"
-        )
+        abc = f"K: {result['key']}\nP: A\n{result['starts'][0]}"
         for part_label, other_part in zip(ascii_uppercase[1:], result["starts"][1:]):
             abc += f"\nP: {part_label}\n{other_part}"
         s_html_body += (
-            f"<li><a href='{result["url"]}'>link</a>"
+            f"<li><a href='{result['url']}'>link</a>"
             f"<div id={music_id!r}><pre>{abc}</pre></div>"
-            f'</li>\n'
+            f"</li>\n"
         )
     s_html_body += "</ol>\n"
 
