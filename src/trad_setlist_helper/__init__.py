@@ -14,7 +14,7 @@ from pathlib import Path
 from string import ascii_lowercase
 from typing import TypedDict, TYPE_CHECKING, NotRequired
 
-__version__ = "0.0.1.dev1"
+__version__ = "0.0.1"
 
 if TYPE_CHECKING:
     import pandas as pd
