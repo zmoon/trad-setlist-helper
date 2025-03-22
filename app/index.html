@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>trad setlist helper</title>
+    <link
+      rel="stylesheet"
+      href="https://pyscript.net/releases/2025.3.1/core.css"
+    />
+    <script
+      type="module"
+      src="https://pyscript.net/releases/2025.3.1/core.js"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js"></script>
+  </head>
+  <body>
+    <!-- Input text box -->
+    <textarea
+      id="input"
+      placeholder="Enter sets..."
+      style="width: 100%; padding: 10px; font-size: 16px; resize: both"
+      rows="4"
+    ></textarea>
+
+    <!-- Submit sets button -->
+    <button py-click="submit" placeholder="Enter sets...">Submit</button>
+
+    <!-- Output area -->
+    <div id="output" style="margin-top: 10px; padding: 10px; font-size: 16px">
+      Waiting to load data...
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      See <a href="https://github.com/zmoon/trad-setlist-helper">GitHub</a> for
+      more info.
+    </footer>
+
+    <script>
+      function renderAbc() {
+        // Find all divs with ID music-* and render them
+        document.querySelectorAll('div[id^="music-"]').forEach(function (div) {
+          var abc = div.querySelector("pre").textContent;
+          ABCJS.renderAbc(div, abc, {
+            scale: 0.6,
+            staffwidth: 350,
+          });
+        });
+      }
+    </script>
+
+    <script type="py" src="./main.py" config="./pyscript.toml"></script>
+  </body>
+</html>
