@@ -45,13 +45,17 @@ def tune_to_html(tune: Result, *, div_id: str | None = None) -> str:
     for part_label, other_part in zip(ascii_uppercase[1:], tune["starts"][1:]):
         abc += f"\nP: {part_label}\n{other_part}"
 
-    return f'<a href="{tune["url"]}">link</a><div id="{div_id}"><pre>{abc}</pre></div>'
+    tune_id = tune["tune_id"]
+    setting_id = tune["setting_id"]
+    url = f"https://thesession.org/tunes/{tune_id}#setting{setting_id}"
+
+    return f'<a href="{url}">link</a><div id="{div_id}"><pre>{abc}</pre></div>'
 
 
 def set_to_html(set: Iterable[Result], *, heading: str | None = None) -> str:
     if heading is None:
         # TODO: include type or types
-        heading = " / ".join(tune["name"].strip() for tune in set)
+        heading = " / ".join(tune["name_input"].strip() for tune in set)
 
     # Ensure only single spaces separate words
     heading = re.sub(r"\s{2,}", " ", heading)

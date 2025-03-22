@@ -18,6 +18,8 @@ from pathlib import Path
 from string import ascii_lowercase
 from typing import TypedDict, TYPE_CHECKING, NotRequired
 
+__version__ = "0.0.0"
+
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -38,6 +40,8 @@ def load_tunes() -> pd.DataFrame:
 
 @lru_cache(1)
 def load_aliases() -> pd.DataFrame:
+    import pandas as pd
+
     from pyabc2.sources import the_session
 
     # TODO: should the primary name get preferential treatment?
@@ -125,14 +129,23 @@ class Query(TypedDict):
 
 
 class Result(TypedDict):
-    url: str
-    """URL to the tune on The Session."""
+    name: str
+    """Name in the result (normalized The Session format)."""
+
+    tune_id: int
+    """Tune ID on The Session."""
+
+    setting_id: int
+    """Setting ID on The Session."""
 
     key: str
-    """Key/mode of the tune according to The Session setting selected, e.g. 'Edorian'."""
+    """Key/mode of the tune according to The Session setting selected, e.g. 'Edor'."""
 
     starts: list[str]
     """List of ABC notation strings for the start of each part."""
+
+    name_input: str
+    """Name in the query."""
 
 
 def match(query: Query) -> Result:
@@ -172,7 +185,9 @@ def match(query: Query) -> Result:
 
     # Pick the oldest matching setting
     setting_id = matches.setting_id.min()
-    url = f"https://thesession.org/tunes/{matches.tune_id.iloc[0]}#setting{setting_id}"
+    tune_id_out = matches.tune_id.iloc[0]
+    if tune_id is not None:
+        assert tune_id == tune_id_out
     abc = (
         matches.sort_values(by="setting_id", ascending=True)
         .abc.iloc[0]
@@ -202,9 +217,12 @@ def match(query: Query) -> Result:
         )  # FIXME: counting not accounting for the || and such
 
     return {
-        "url": url,
-        "key": matches["mode"].iloc[0][:4],  # TODO: not general
+        "name": name,
+        "tune_id": tune_id_out,
+        "setting_id": setting_id,
+        "key": matches["mode"].iloc[0][:4],  # TODO: more general
         "starts": starts,
+        "name_input": name_in,
     }
 
 

@@ -1,0 +1,19 @@
+[project]
+name = "trad-setlist-helper"
+authors = [{"name" = "zmoon", email = "zmoon92@gmail.com"}]
+dynamic = ["version"]
+description = "Convert list of tune sets to set list with incipits"
+license = {"file" = "LICENSE"}
+readme = "README.md"
+requires-python = "~= 3.11"
+dependencies = [
+    "pandas",
+    "pyabc2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/trad_setlist_helper/__init__.py"

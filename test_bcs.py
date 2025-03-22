@@ -1,4 +1,6 @@
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+from webbrowser import open_new_tab
 
 import pandas as pd
 
@@ -31,4 +33,7 @@ for i_set, (set_input, type_input) in enumerate(
     queries = parse_set(line)
     results.append([match(query) for query in queries])
 
-print(setlist_to_html(results))
+html = setlist_to_html(results)
+with NamedTemporaryFile("w", suffix=".html", delete=False) as f:
+    f.write(html)
+    open_new_tab(f.name)
