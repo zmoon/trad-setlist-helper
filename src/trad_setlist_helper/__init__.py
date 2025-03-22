@@ -1,12 +1,8 @@
 """
-Given list of tune sets, match them to The Session and create a Markdown
-document that includes the start of the tune (in ABC notation)
-and a link to the the tune page.
-
-Would be nice to add:
-- fuzzy name matching
-- fuzzy key/mode matching (e.g. same key sig, maybe even min and dor matching)
-- default to Norbeck for the transcription if available
+Given a list of tune sets, match them to The Session and create a
+document that includes the start of the tune
+and a link to the the tune page
+for each tune in each set.
 """
 
 from __future__ import annotations
