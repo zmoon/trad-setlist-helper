@@ -35,7 +35,7 @@ def load_tunes() -> pd.DataFrame:
     # TODO: cache the files to disk, maybe as json.gz, instead of downloading every session
     return the_session.load_meta("tunes")[
         ["tune_id", "setting_id", "type", "mode", "abc", "name"]
-    ]
+    ].rename(columns={"mode": "key"})  # TODO: rename in pyabc2?
 
 
 @lru_cache(1)
@@ -121,8 +121,8 @@ class Query(TypedDict):
     type: str
     """Tune type, e.g. 'reel'."""
 
-    mode: str | None
-    """Key/mode, e.g. 'Edor'."""
+    key: str | None
+    """Key/mode, e.g. 'D', 'Am', 'Edor'."""
 
     tune_id: NotRequired[int | None]
     """Tune ID on The Session (if known). Optional."""
@@ -152,8 +152,8 @@ def match(query: Query) -> Result:
     name_in = query["name"]
     name = normalize_name(query["name"])
     key = None
-    if query["mode"] is not None:
-        key = normalize_key(query["mode"])
+    if query["key"] is not None:
+        key = normalize_key(query["key"])
     tune_type = normalize_type(query["type"])
     tune_id = query.get("tune_id")
 
@@ -165,7 +165,7 @@ def match(query: Query) -> Result:
     # Now narrow based on type and key
     s_query = "tune_id == @possible_ids and type == @tune_type"
     if key is not None:
-        s_query += " and mode == @key"
+        s_query += " and key == @key"
     if tune_id is not None:
         s_query += " and tune_id == @tune_id"
     matches = load_tunes().query(s_query)
@@ -176,7 +176,7 @@ def match(query: Query) -> Result:
         )
     elif matches.tune_id.nunique() > 1:
         matches_ = matches.drop(columns="setting_id").drop_duplicates(
-            ["tune_id", "type", "mode"], keep="first"
+            ["tune_id", "type", "key"], keep="first"
         )
         raise ValueError(
             f"Multiple {name_in!r} tunes found for "
@@ -220,7 +220,7 @@ def match(query: Query) -> Result:
         "name": name,
         "tune_id": tune_id_out,
         "setting_id": setting_id,
-        "key": matches["mode"].iloc[0][:4],  # TODO: more general
+        "key": matches["key"].iloc[0][:4],  # TODO: more general
         "starts": starts,
         "name_input": name_in,
     }
@@ -293,7 +293,7 @@ def parse_tune(tune_input: str, /) -> dict[str, str | None]:
 
     return {
         "name": name_,
-        "mode": key_,
+        "key": key_,
         "tune_id": id_,
     }
 
