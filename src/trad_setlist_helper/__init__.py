@@ -14,7 +14,7 @@ from pathlib import Path
 from string import ascii_lowercase
 from typing import TypedDict, TYPE_CHECKING, NotRequired
 
-__version__ = "0.0.0"
+__version__ = "0.0.1.dev1"
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -23,29 +23,45 @@ HERE = Path(__file__).parent
 
 logger = logging.getLogger(__name__)
 
+USE_CWD_FILES = False
+"""Use downloaded tunes/aliases JSON files in the CWD.
+Set before calling :func:`match` (or :func:`load_tunes` / :func:`load_aliases`).
+"""
+
 
 @lru_cache(1)
 def load_tunes() -> pd.DataFrame:
-    from pyabc2.sources import the_session
+    if USE_CWD_FILES:
+        df = pd.read_json("tunes.json")
+    else:
+        from pyabc2.sources import the_session
 
-    # TODO: cache the files to disk, maybe as json.gz, instead of downloading every session
-    return the_session.load_meta("tunes")[
-        ["tune_id", "setting_id", "type", "mode", "abc", "name"]
-    ].rename(columns={"mode": "key"})  # TODO: rename in pyabc2?
+        # TODO: cache the files to disk, maybe as json.gz, instead of downloading every session
+        df = the_session.load_meta("tunes")
+
+    return df[["tune_id", "setting_id", "type", "mode", "abc", "name"]].rename(
+        columns={"mode": "key"}
+    )
+    # TODO: rename in pyabc2?
 
 
 @lru_cache(1)
 def load_aliases() -> pd.DataFrame:
     import pandas as pd
 
-    from pyabc2.sources import the_session
+    if USE_CWD_FILES:
+        df = pd.read_json("aliases.json")
+    else:
+        from pyabc2.sources import the_session
+
+        df = the_session.load_meta("aliases")
 
     # TODO: should the primary name get preferential treatment?
     # Note we have to explicitly add primary name as an alias
     return pd.concat(
         [
             load_tunes()[["tune_id", "name"]].rename(columns={"name": "alias"}),
-            the_session.load_meta("aliases")[["tune_id", "alias"]],
+            df[["tune_id", "alias"]],
         ],
         ignore_index=True,
     ).drop_duplicates()
