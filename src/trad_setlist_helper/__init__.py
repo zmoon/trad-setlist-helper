@@ -303,6 +303,35 @@ def parse_set_type(type_input: str, num_tunes: int, /) -> list[str]:
     return types
 
 
+def tune_types_str(types: list[str], /) -> str:
+    """Create a simplified string representation of a list of The Session tune types."""
+    if not types:
+        raise ValueError("No types")
+    elif len(types) == 1:
+        return types[0]
+
+    cur = types[0]
+    plural = False
+    simplified = []
+    for nxt in types[1:] + ["dummy"]:
+        if cur == nxt:
+            plural = True
+        else:
+            simplified.append(cur + ("s" if plural else ""))
+            cur = nxt
+            plural = False
+
+    return ", ".join(simplified)
+
+
+assert tune_types_str(["reel"]) == "reel"
+assert tune_types_str(["reel", "reel"]) == "reels"
+assert tune_types_str(["reel", "reel", "reel"]) == "reels"
+assert tune_types_str(["reel", "reel", "jig"]) == "reels, jig"
+assert tune_types_str(["reel", "jig", "jig"]) == "reel, jigs"
+assert tune_types_str(["reel", "jig", "reel"]) == "reel, jig, reel"
+
+
 def parse_tune(tune_input: str, /) -> Query:
     """Parse a tune input string.
 

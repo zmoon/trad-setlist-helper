@@ -54,8 +54,11 @@ def tune_to_html(tune: Result, *, div_id: str | None = None) -> str:
 
 def set_to_html(set: Iterable[Result], *, heading: str | None = None) -> str:
     if heading is None:
-        # TODO: include type or types
-        heading = " / ".join(tune["name_input"].strip() for tune in set)
+        from . import tune_types_str
+
+        types_str = tune_types_str([tune["type"] for tune in set])
+        tunes_str = " / ".join(tune["name_input"].strip() for tune in set)
+        heading = f"{types_str}: {tunes_str}"
 
     # Ensure only single spaces separate words
     heading = re.sub(r"\s{2,}", " ", heading)
