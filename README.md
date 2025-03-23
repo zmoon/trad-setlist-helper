@@ -5,6 +5,14 @@ Use data from The Session to generate incipts for a list of tune sets.
 [PyScript](https://pyscript.net) app (WIP):
 [dev](https://raw.githack.com/zmoon/trad-setlist-helper/main/app/)
 
+Examples to try:
+
+```
+reel: Cooley's
+reels: Cooley's / The Wise Maid [118] / The Maid Behind The Bar
+jigs: The Banks of Loch Gowna / Winnie Hayes / The Mouse in the Kitchen
+```
+
 ---
 
 Would be nice to add:
