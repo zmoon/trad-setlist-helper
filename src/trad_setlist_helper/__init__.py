@@ -128,6 +128,32 @@ def take_measures(abc: str, *, n: int = 5) -> str:
     return abc[:i]
 
 
+def starts(abc, *, n: int = 5) -> list[str]:
+    # Take first few bars
+    start = take_measures(abc, n=n)
+
+    # Try to find the start of next parts, looking for |: or ||
+    # Reject || at end and |: that follows ||
+    offset = 10
+    i_part_cands = []
+    for m in re.finditer(r"\|[:|]", abc[offset:]):
+        i = m.start() + offset
+        if "|" in abc[i - 3 : i]:
+            continue
+        if len(abc) - i < 10:
+            continue
+        i_part_cands.append(i)
+    logger.debug(f"part start candidates: {i_part_cands}")
+
+    starts = [start]
+    for i_part in i_part_cands:
+        starts.append(
+            take_measures(abc[i_part:], n=7)
+        )  # FIXME: counting not accounting for the || and such
+
+    return starts
+
+
 class Query(TypedDict):
     name: str
     """Tune name, e.g. 'The Frost is All Over'."""
@@ -218,28 +244,7 @@ def match(query: Query) -> Result:
         .abc.iloc[0]
         .replace("\r\n", "")
     )
-
-    # Take first few bars
-    start = take_measures(abc, n=5)
-
-    # Try to find the start of next parts, looking for |: or ||
-    # Reject || at end and |: that follows ||
-    offset = 10
-    i_part_cands = []
-    for m in re.finditer(r"\|[:|]", abc[offset:]):
-        i = m.start() + offset
-        if "|" in abc[i - 3 : i]:
-            continue
-        if len(abc) - i < 10:
-            continue
-        i_part_cands.append(i)
-    logger.debug(f"part start candidates: {i_part_cands}")
-
-    starts = [start]
-    for i_part in i_part_cands:
-        starts.append(
-            take_measures(abc[i_part:], n=7)
-        )  # FIXME: counting not accounting for the || and such
+    starts_ = starts(abc)
 
     return {
         "name": name,
@@ -247,7 +252,7 @@ def match(query: Query) -> Result:
         "setting_id": int(setting_id),
         "type": tune_type_out,
         "key": key_out,
-        "starts": starts,
+        "starts": starts_,
         "name_input": name_in,
     }
 
@@ -341,3 +346,45 @@ def parse_set(set_line: str, /) -> list[Query]:
         query["type"] = type_
 
     return queries
+
+
+def get_member_set(member_id: int, set_id: int) -> list[Result]:
+    import requests
+
+    url = f"https://thesession.org/members/{member_id}/sets/{set_id}?format=json"
+    r = requests.get(url)
+    r.raise_for_status()
+    data = r.json()
+
+    results = []
+    for setting in data["settings"]:
+        url = setting["url"]
+        tune_id = int(url.split("/")[-1].split("#")[0])
+        d: Result = {
+            "name": setting["name"],
+            "tune_id": tune_id,
+            "setting_id": setting["id"],
+            "type": setting["type"],
+            "key": setting["key"],
+            "starts": starts(setting["abc"]),
+            "name_input": setting["name"],
+        }
+        results.append(d)
+
+    return results
+
+
+def get_member_sets(member_id: int) -> list[list[Result]]:
+    import requests
+
+    url = f"https://thesession.org/members/{member_id}/sets?format=json"
+    r = requests.get(url)
+    r.raise_for_status()
+    data = r.json()
+
+    sets = []
+    for set in data["sets"]:
+        set_id = set["id"]
+        sets.append(get_member_set(member_id, set_id))
+
+    return sets
