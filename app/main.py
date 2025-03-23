@@ -1,5 +1,5 @@
-import js
-from pyscript import document
+import js  # type: ignore[import]
+from pyscript import document  # type: ignore[import]
 
 import trad_setlist_helper
 from trad_setlist_helper import match, parse_set, load_aliases

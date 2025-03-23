@@ -36,4 +36,5 @@ dev-dependencies = [
     "mypy",
     "pandas-stubs",
     "pytest",
+    "types-requests",
 ]
