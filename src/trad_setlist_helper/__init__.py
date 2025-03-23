@@ -366,7 +366,7 @@ def get_member_set(member_id: int, set_id: int) -> list[Result]:
             "setting_id": setting["id"],
             "type": setting["type"],
             "key": setting["key"],
-            "starts": starts(setting["abc"]),
+            "starts": starts(setting["abc"].replace("! ", "")),
             "name_input": setting["name"],
         }
         results.append(d)

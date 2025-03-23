@@ -85,7 +85,7 @@ def setlist_to_html(
     s += "\n".join(set_to_html(set) for set in sets)
 
     if render:
-        s += RENDER_SNIPPET
+        s += "\n" + RENDER_SNIPPET
 
     if fullpage:
         s += "</body>\n</html>"
