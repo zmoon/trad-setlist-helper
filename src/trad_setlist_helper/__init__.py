@@ -122,6 +122,8 @@ def normalize_name(name: str) -> str:
 def take_measures(abc: str, *, n: int = 5) -> str:
     i = c = 0
     while c < n:
+        if i >= len(abc):
+            break
         if abc[i] == "|":
             c += 1
         i += 1
@@ -147,9 +149,8 @@ def starts(abc, *, n: int = 5) -> list[str]:
 
     starts = [start]
     for i_part in i_part_cands:
-        starts.append(
-            take_measures(abc[i_part:], n=7)
-        )  # FIXME: counting not accounting for the || and such
+        starts.append(take_measures(abc[i_part:], n=n + 2))
+        # FIXME: counting not accounting for the || and such
 
     return starts
 

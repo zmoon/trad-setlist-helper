@@ -34,6 +34,11 @@ for i_set, (set_input, type_input) in enumerate(
     results.append([match(query) for query in queries])
 
 html = setlist_to_html(results)
-with NamedTemporaryFile("w", suffix=".html", delete=False) as f:
+with NamedTemporaryFile(
+    "w",
+    suffix=".html",
+    delete=False,
+    encoding="utf-8",
+) as f:
     f.write(html)
     open_new_tab(f.name)
