@@ -1,5 +1,7 @@
 # trad-setlist-helper
 
+<!-- [![Version on PyPI](https://img.shields.io/pypi/v/trad-setlist-helper.svg)](https://pypi.org/project/trad-setlist-helper/) -->
+
 Use data from [The Session](https://thesession.org/) to generate incipts for a list of tune sets.
 
 [PyScript](https://pyscript.net) app (WIP):
