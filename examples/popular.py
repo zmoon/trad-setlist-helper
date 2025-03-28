@@ -1,4 +1,5 @@
 """Create HTML of the popular tunes."""
+# mypy: disable-error-code="typeddict-item, union-attr"
 
 import pandas as pd
 
@@ -75,14 +76,14 @@ for type_, n in to_take.items():
             "tune_id": row.tune_id,
             "setting_id": row.setting_id,
             "type": row.type,
-            "key": row.key[:4],
-            "starts": starts(row.abc.replace("\r\n", "")),
+            "key": row.key[:4],  # type: ignore[index]
+            "starts": starts(row.abc.replace("\r\n", "")),  # type: ignore[arg-type]
             "name_input": row.name,
         }
         if (i - 1) % 20 == 0:
             a, b = i, min(i + 19, n)
             body += f'<h3 id="{type_}s-{a}-{b}">{a}&ndash;{b}</h3>\n'
-        body += f'<h4 id="{type_}-{i}">{row.name} ({row.key[:4]} {row.type})</h4>'
+        body += f'<h4 id="{type_}-{i}">{row.name} ({row.key[:4]} {row.type})</h4>'  # type: ignore[index, str-bytes-safe]
         body += f"{i}.&ensp;({row.tunebooks})&ensp;"
         body += tune_to_html(d) + "\n"
 
