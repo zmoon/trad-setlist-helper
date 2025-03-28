@@ -1,6 +1,6 @@
 # trad-setlist-helper
 
-Use data from The Session to generate incipts for a list of tune sets.
+Use data from [The Session](https://thesession.org/) to generate incipts for a list of tune sets.
 
 [PyScript](https://pyscript.net) app (WIP):
 [dev](https://raw.githack.com/zmoon/trad-setlist-helper/main/app/)
