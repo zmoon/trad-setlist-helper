@@ -1,7 +1,7 @@
 packages = [
     "pandas",
     "pyabc2==0.1.0.dev2",
-    "trad-setlist-helper==0.0.2.dev1",
+    "trad-setlist-helper==0.0.2.dev2",
 ]
 [files]
 "https://raw.githubusercontent.com/adactio/TheSession-data/main/json/aliases.json" = ""
